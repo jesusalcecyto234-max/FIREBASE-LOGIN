@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <title>Hola</title>
+</head>
+<body class="bg-light">
+
+    <div class="container py-5">
+        <div class="card shadow-sm mx-auto" style="max-width: 34rem;">
+            <div class="card-body">
+                <h3 class="card-title">¡Hola!</h3>
+                <p class="text-secondary" id="usuarioInfo">Verificando sesión...</p>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ID Token guardado en sesión:</label>
+                    <textarea id="tokenBox" class="form-control font-monospace small" rows="4" readonly></textarea>
+                </div>
+
+                <button id="logoutBtn" class="btn btn-outline-danger">Cerrar sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/sweetalert2.all.min.js"></script>
+
+    <script type="module">
+        import { auth } from "./firebase-config.js";
+        import {
+            onAuthStateChanged,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+        const usuarioInfo = document.getElementById("usuarioInfo");
+        const tokenBox = document.getElementById("tokenBox");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                sessionStorage.removeItem("firebaseIdToken");
+                window.location.href = "./login.html";
+                return;
+            }
+
+            const idToken = await user.getIdToken();
+            sessionStorage.setItem("firebaseIdToken", idToken);
+
+            usuarioInfo.textContent = `Sesión activa: ${user.email} (UID: ${user.uid})`;
+            tokenBox.value = idToken;
+        });
+
+        logoutBtn.addEventListener("click", async () => {
+            await signOut(auth);
+            sessionStorage.removeItem("firebaseIdToken");
+            window.location.href = "./login.html";
+        });
+    </script>
+</body>
+</html>
