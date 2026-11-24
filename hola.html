@@ -15,12 +15,7 @@
                 <h3 class="card-title">¡Hola!</h3>
                 <p class="text-secondary" id="usuarioInfo">Verificando sesión...</p>
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold">ID Token guardado en sesión:</label>
-                    <textarea id="tokenBox" class="form-control font-monospace small" rows="4" readonly></textarea>
-                </div>
-
-                <button id="logoutBtn" class="btn btn-outline-danger">Cerrar sesión</button>
+                <button type="button" id="logoutBtn" class="btn btn-outline-danger">Cerrar sesión</button>
             </div>
         </div>
     </div>
@@ -36,27 +31,78 @@
         } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
         const usuarioInfo = document.getElementById("usuarioInfo");
-        const tokenBox = document.getElementById("tokenBox");
         const logoutBtn = document.getElementById("logoutBtn");
+        const TOKEN_KEY = "firebaseIdToken";
+        const LOGIN_URL = "./index.html";
+
+        let checker = null;
+        let yaSalio = false;
+        let listoParaVigilar = false;
+
+        function salirDeSesion() {
+            if (yaSalio) return;
+            yaSalio = true;
+            listoParaVigilar = false;
+
+            if (checker) {
+                clearInterval(checker);
+                checker = null;
+            }
+
+            try {
+                localStorage.removeItem(TOKEN_KEY);
+            } catch (_) {}
+
+            usuarioInfo.textContent = "Verificando sesión...";
+
+            signOut(auth).catch((err) => {
+                console.error("Error en signOut:", err);
+            });
+
+            setTimeout(() => {
+                window.location.replace(LOGIN_URL);
+            }, 50);
+        }
+
+        function revisarLocalStorage() {
+            if (yaSalio || !listoParaVigilar) return;
+            const val = localStorage.getItem(TOKEN_KEY);
+            if (!val) {
+                salirDeSesion();
+            }
+        }
+
+        checker = setInterval(revisarLocalStorage, 200);
+
+        window.addEventListener("storage", (e) => {
+            if (e.key === TOKEN_KEY && (e.newValue === null || e.newValue === "")) {
+                salirDeSesion();
+            }
+        });
 
         onAuthStateChanged(auth, async (user) => {
+            if (yaSalio) return;
+
             if (!user) {
-                sessionStorage.removeItem("firebaseIdToken");
-                window.location.href = "./login.html";
+                salirDeSesion();
                 return;
             }
 
-            const idToken = await user.getIdToken();
-            sessionStorage.setItem("firebaseIdToken", idToken);
-
-            usuarioInfo.textContent = `Sesión activa: ${user.email} (UID: ${user.uid})`;
-            tokenBox.value = idToken;
+            try {
+                const idToken = await user.getIdToken();
+                localStorage.setItem(TOKEN_KEY, idToken);
+                const identificador = user.email || user.phoneNumber || "Invitado";
+                usuarioInfo.textContent = `Sesión activa: ${identificador}`;
+                listoParaVigilar = true;
+            } catch (err) {
+                console.error("Error obteniendo token:", err);
+                salirDeSesion();
+            }
         });
 
-        logoutBtn.addEventListener("click", async () => {
-            await signOut(auth);
-            sessionStorage.removeItem("firebaseIdToken");
-            window.location.href = "./login.html";
+        logoutBtn.addEventListener("click", () => {
+            logoutBtn.disabled = true;
+            salirDeSesion();
         });
     </script>
 </body>

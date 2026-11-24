@@ -25,10 +25,56 @@
                     <button type="submit" class="btn btn-primary mt-2 w-100 fw-bold" style="background-color: #007bff; border-color: #007bff;">
                         Registrar
                     </button>
-                    <div class="mt-3 text-center">
-                        <a href="login.html">Inicio</a>
-                    </div>
                 </form>
+
+                <hr class="my-4">
+
+                <button type="button" id="googleBtn" class="btn btn-outline-dark w-100 fw-bold mb-3 d-flex align-items-center justify-content-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" class="me-2">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span>Entrar con&nbsp;</span>
+                    <span style="color: #4285F4;">G</span><span style="color: #EA4335;">o</span><span style="color: #FBBC05;">o</span><span style="color: #4285F4;">g</span><span style="color: #34A853;">l</span><span style="color: #EA4335;">e</span>
+                </button>
+
+                <h6 class="text-center mb-3">Registrar con teléfono</h6>
+                <div id="pasoTelefono">
+                    <div class="mb-3">
+                        <label for="telefonoInput" class="form-label">Teléfono (con lada):</label>
+                        <input type="tel" id="telefonoInput" class="form-control" placeholder="+525512345678">
+                    </div>
+                    <button type="button" id="enviarSmsBtn" class="btn btn-outline-primary w-100 fw-bold">
+                        Enviar SMS
+                    </button>
+                </div>
+
+                <div id="pasoCodigo" class="d-none">
+                    <div class="mb-3">
+                        <label for="codigoSmsInput" class="form-label">Código SMS:</label>
+                        <input type="text" id="codigoSmsInput" class="form-control" placeholder="123456" maxlength="6">
+                    </div>
+                    <button type="button" id="confirmarSmsBtn" class="btn btn-success w-100 fw-bold mb-2">
+                        Confirmar código
+                    </button>
+                    <button type="button" id="cambiarTelefonoBtn" class="btn btn-link btn-sm w-100">
+                        Cambiar teléfono
+                    </button>
+                </div>
+
+                <div id="recaptcha-container" class="mt-2"></div>
+
+                <hr class="my-4">
+
+                <button type="button" id="anonimoBtn" class="btn btn-outline-secondary w-100 fw-bold">
+                    <i class="bi bi-person-incognito me-1"></i> Entrar como anónimo
+                </button>
+
+                <div class="mt-3 text-center">
+                    <a href="index.html">Inicio</a>
+                </div>
             </div>
         </div>
     </div>
@@ -39,10 +85,46 @@
     <script type="module">
         import { auth } from "./firebase-config.js";
         import {
-            createUserWithEmailAndPassword
+            createUserWithEmailAndPassword,
+            GoogleAuthProvider,
+            signInWithPopup,
+            RecaptchaVerifier,
+            signInWithPhoneNumber,
+            signInAnonymously
         } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
         const registroForm = document.getElementById("registroForm");
+        const googleBtn = document.getElementById("googleBtn");
+        const pasoTelefono = document.getElementById("pasoTelefono");
+        const pasoCodigo = document.getElementById("pasoCodigo");
+        const telefonoInput = document.getElementById("telefonoInput");
+        const codigoSmsInput = document.getElementById("codigoSmsInput");
+        const enviarSmsBtn = document.getElementById("enviarSmsBtn");
+        const confirmarSmsBtn = document.getElementById("confirmarSmsBtn");
+        const cambiarTelefonoBtn = document.getElementById("cambiarTelefonoBtn");
+        const anonimoBtn = document.getElementById("anonimoBtn");
+
+        const googleProvider = new GoogleAuthProvider();
+        googleProvider.setCustomParameters({
+            prompt: "select_account"
+        });
+
+        let confirmacionSms = null;
+        let enviandoSms = false;
+        let entrandoAnonimo = false;
+        let entrandoGoogle = false;
+
+        const recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+            size: "invisible"
+        });
+
+        async function mostrarAlerta(opciones) {
+            if (window.Swal) {
+                await Swal.fire(opciones);
+            } else if (opciones.text) {
+                alert(opciones.text);
+            }
+        }
 
         registroForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -54,26 +136,156 @@
                 const token = await credencial.user.getIdToken();
                 sessionStorage.setItem("firebaseIdToken", token);
 
-                if (window.Swal) {
-                    await Swal.fire({
-                        icon: "success",
-                        title: "Cuenta creada",
-                        text: "Usuario registrado correctamente.",
-                        timer: 1100,
-                        showConfirmButton: false
-                    });
-                }
+                await mostrarAlerta({
+                    icon: "success",
+                    title: "Cuenta creada",
+                    text: "Usuario registrado correctamente.",
+                    timer: 1100,
+                    showConfirmButton: false
+                });
                 window.location.href = "./hola.html";
             } catch (error) {
-                if (window.Swal) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "No se pudo registrar",
-                        text: error.message
-                    });
-                } else {
-                    alert("Error: " + error.message);
-                }
+                await mostrarAlerta({
+                    icon: "error",
+                    title: "No se pudo registrar",
+                    text: error.message
+                });
+            }
+        });
+
+        googleBtn.addEventListener("click", async () => {
+            if (entrandoGoogle) return;
+            entrandoGoogle = true;
+            googleBtn.disabled = true;
+
+            try {
+                const credencial = await signInWithPopup(auth, googleProvider);
+                const token = await credencial.user.getIdToken();
+                sessionStorage.setItem("firebaseIdToken", token);
+
+                await mostrarAlerta({
+                    icon: "success",
+                    title: "Sesión iniciada",
+                    text: `Bienvenido, ${credencial.user.email || "Usuario de Google"}.`,
+                    timer: 1000,
+                    showConfirmButton: false
+                });
+                window.location.href = "./hola.html";
+            } catch (error) {
+                console.error("Error al iniciar con Google:", error.code, error.message);
+                await mostrarAlerta({
+                    icon: "error",
+                    title: "No se pudo entrar con Google",
+                    text: error.message || "Verifica que Google esté habilitado en Firebase."
+                });
+            } finally {
+                entrandoGoogle = false;
+                googleBtn.disabled = false;
+            }
+        });
+
+        enviarSmsBtn.addEventListener("click", async () => {
+            if (enviandoSms) return;
+
+            const telefono = telefonoInput.value.trim();
+            if (!telefono.startsWith("+") || telefono.length < 10) {
+                await mostrarAlerta({
+                    icon: "warning",
+                    title: "Teléfono inválido",
+                    text: "Escribe el número con código de país, por ejemplo +525512345678."
+                });
+                return;
+            }
+
+            enviandoSms = true;
+            enviarSmsBtn.disabled = true;
+
+            try {
+                confirmacionSms = await signInWithPhoneNumber(auth, telefono, recaptchaVerifier);
+                pasoTelefono.classList.add("d-none");
+                pasoCodigo.classList.remove("d-none");
+                await mostrarAlerta({
+                    icon: "success",
+                    title: "SMS enviado",
+                    text: "Revisa el mensaje e ingresa el código."
+                });
+            } catch (error) {
+                console.error("Error al enviar SMS:", error.code, error.message);
+                await mostrarAlerta({
+                    icon: "error",
+                    title: "No se pudo enviar SMS",
+                    text: error.message || "Revisa la consola para ver el detalle."
+                });
+            } finally {
+                enviandoSms = false;
+                enviarSmsBtn.disabled = false;
+            }
+        });
+
+        confirmarSmsBtn.addEventListener("click", async () => {
+            const codigo = codigoSmsInput.value.trim();
+            if (!codigo || !confirmacionSms) {
+                await mostrarAlerta({
+                    icon: "warning",
+                    title: "Código faltante",
+                    text: "Ingresa el código SMS de 6 dígitos."
+                });
+                return;
+            }
+
+            confirmarSmsBtn.disabled = true;
+            try {
+                const credencial = await confirmacionSms.confirm(codigo);
+                const token = await credencial.user.getIdToken();
+                sessionStorage.setItem("firebaseIdToken", token);
+                window.location.href = "./hola.html";
+            } catch (error) {
+                console.error("Error al confirmar código SMS:", error.code, error.message);
+                await mostrarAlerta({
+                    icon: "error",
+                    title: "Código incorrecto",
+                    text: "Verifica el código e inténtalo de nuevo."
+                });
+            } finally {
+                confirmarSmsBtn.disabled = false;
+            }
+        });
+
+        cambiarTelefonoBtn.addEventListener("click", () => {
+            confirmacionSms = null;
+            codigoSmsInput.value = "";
+            pasoCodigo.classList.add("d-none");
+            pasoTelefono.classList.remove("d-none");
+        });
+
+        anonimoBtn.addEventListener("click", async () => {
+            if (entrandoAnonimo) return;
+            entrandoAnonimo = true;
+            anonimoBtn.disabled = true;
+
+            try {
+                const credencial = await signInAnonymously(auth);
+                const token = await credencial.user.getIdToken();
+                sessionStorage.setItem("firebaseIdToken", token);
+
+                await mostrarAlerta({
+                    icon: "success",
+                    title: "Sesión anónima iniciada",
+                    text: "Entraste sin correo ni contraseña.",
+                    timer: 1000,
+                    showConfirmButton: false
+                });
+                window.location.href = "./hola.html";
+            } catch (error) {
+                console.error("Error en acceso anónimo:", error.code, error.message);
+                await mostrarAlerta({
+                    icon: "error",
+                    title: "No se pudo entrar como anónimo",
+                    text: error.message || "Verifica que el proveedor Anónimo esté habilitado en Firebase."
+                });
+            } finally {
+                entrandoAnonimo = false;
+                anonimoBtn.disabled = false;
             }
         });
     </script>
